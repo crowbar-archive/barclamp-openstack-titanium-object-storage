@@ -1,0 +1,180 @@
+# Copyright 2011, Dell
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Author: RobHirschfeld
+#
+
+barclamp:
+  name: swift
+  display: Swift
+  description: 'OpenStack Object Storage: Scale-out object store'
+  version: 0
+  requires:
+    - '@crowbar'
+    - keystone
+  member:
+    - haopenstack
+
+crowbar:
+  layout: 1
+  order: 80
+  run_order: 80
+  chef_order: 80
+
+nav:
+  utils:
+    swift: '"/swift/dashboard/"'
+
+locale_additions:
+  en:
+    nav:
+      swift: Swift Dispersion
+    barclamp:
+      swift:
+        run:
+          success: "Sucessfully started dispersion report on node %{node}"
+          failure: "Failed to run dispersion report on node %{node}: %{error}"
+          duplicate: "there's already an active dispersion report run"
+
+        dashboard:
+          title: Swift Dispersion
+          n_report_runs: "%{n} report run(s)"
+          no_report_runs: No report runs
+
+          run:
+            label: Run swift dispersion report on node
+            do:  Go!
+            no_nodes: No nodes with installed dispersion tools available
+          clear:
+            do: Clear
+            success: All non-running and stale dispersion report runs were cleared
+
+          report_run:
+            node: Node
+            started: Started
+            ended: Ended
+            status: Status
+            status_:
+              running: Collecting
+              passed: Ready
+              failed: Error
+
+        results:
+          title: "Results of dispersion report %{report_run}"
+          raw_json: Raw JSON
+          report:
+            r_key: Key
+            r_value: Value
+            status: Status
+            status_:
+              error: Error
+              failure: Failure
+              passed: Passed
+              skipped: Skipped
+
+        edit_attributes: 
+          attributes: Attributes
+          zones: Zones
+          frontend: Frontend
+          partitions: Partitions
+          min_part_hours: Minimum Partitions per Hour
+          replicas: Replicas
+          cluster_hash: Cluster Hash
+          cluster_admin_pw: Cluster Admin Password
+          user: User
+          group: Group
+          debug: Debug
+          auth_method: Authentication method
+          keystone_instance: Keystone instance
+          keystone_service_user: Keystone Service User
+          keystone_service_password: Keystone Service Password
+          keystone_delay_auth_decision: Allow Public Containers (performance penalty)
+          install_slog: Install sLogging support
+          slog_account: sLogging swift account
+          slog_user: sLogging swift user
+          slog_passwd: sLogging swift users password
+          middlewares:
+            label: Additional middlewares
+            enabled: Enabled
+            staticweb: StaticWeb
+            tempurl: TempURL
+            formpost: FormPOST
+            domain_remap: Domain Remap
+            path_root: Path root
+            storage_domain: Storage Domain
+            cname_lookup: CNAME Lookup
+            lookup_depth: Lookup depth
+            ratelimit: Ratelimit
+            clock_accuracy: Clock accuracy
+            max_sleep_time_seconds: Max sleep time seconds
+            log_sleep_time_seconds: Log sleep time seconds
+            rate_buffer_seconds: Rate buffer seconds
+            account_ratelimit: Account ratelimit
+            account_whitelist: Account whitelist
+            account_blacklist: Account blacklist
+            container_ratelimit_size: Container_ratelimit_
+            s3: S3
+            gitrepo: Git repo url
+            git_refspec: Git ref_spec
+            use_gitrepo: Use pull from source
+            use_gitbarclamp: Use barclamp-git to checkout
+        edit_deployment: 
+          deployment: Deployment
+
+debs:
+  ubuntu-12.04:
+    repos:
+      - deb http://ubuntu-cloud.archive.canonical.com/ubuntu precise-updates/grizzly main
+      - deb http://ubuntu-cloud.archive.canonical.com/ubuntu precise-proposed/grizzly main
+      - deb http://ppa.launchpad.net/nginx/stable/ubuntu precise main
+  pkgs:
+    - curl
+    - swift
+    - swift-container
+    - swift-object
+    - sqlite
+    - swift-account
+    - memcached
+    - swift-proxy
+    - xfsprogs
+    - libmemcache-dev
+    - python-swift
+    - python-swauth
+    - python-keystone
+    - gcc
+    - python-configobj
+    - python-coverage
+    - python-dev
+    - python-dnspython
+    - python-eventlet
+    - python-greenlet
+    - python-netifaces
+    - python-nose
+    - python-pastedeploy
+    - python-setuptools
+    - python-simplejson
+    - python-webob
+    - python-xattr
+    - sqlite3
+    - swift-plugin-s3
+    - nginx-extras
+    - uwsgi
+    - uwsgi-plugin-python
+
+git_repo:
+  - swift https://github.com/openstack/swift.git stable/grizzly
+
+git:
+  date: Fri Jul 26 14:09:01 2013 -0700
+  commit: 7778cafc26f4de6734272029c580481a1c221d80
