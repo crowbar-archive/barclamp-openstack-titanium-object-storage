@@ -1,0 +1,3 @@
+[submodule "swift/cache"]
+	path = swift/cache
+	url = https://github.com/openstack-titanium-community/titanium-object-storage-cache.git
