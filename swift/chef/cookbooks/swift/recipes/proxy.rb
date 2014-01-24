@@ -1,5 +1,5 @@
 #
-# Copyright 2011, Dell
+# Copyright 2013, Dell
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 # Author: andi abes
-#
+# Updated for HA: Jeremy Allen
 
 include_recipe 'utils'
 include_recipe 'swift::auth'
@@ -24,8 +24,11 @@ local_ip = Swift::Evaluator.get_ip_by_type(node, :admin_ip_expr)
 public_ip = Swift::Evaluator.get_ip_by_type(node, :public_ip_expr)
 
 # Is there a load-balancer in the environment?
-env_filter = " AND haproxy_config_environment:haproxy-config-#{node[:swift][:haproxy_instance]}"
-proxy_servers= search(:node, "roles:haproxy #{env_filter}")
+# read haproxy proposal name from the swift-nodes databag
+env_filter = "haproxy_config_environment:haproxy-config-#{node[:swift][:haproxy_instance]}"
+Chef::Log.info("Swift:Proxy - HAProxy search env_filter - #{env_filter}")
+# don't specify a role - we need masters and slaves
+proxy_servers = search(:node, "#{env_filter}")
 if proxy_servers.length > 0
   #load-balancer found - get public & admin vips
   node[:swift][:load_balanced] = true
@@ -41,6 +44,48 @@ if proxy_servers.length > 0
   public_net_db = data_bag_item('crowbar', 'public_network')
   public_keystone_endpoint = public_net_db["allocated_by_name"]["#{haproxy_machine_name}"]["address"]
   Chef::Log.info("Swift:Proxy - public network virtual IP - #{public_keystone_endpoint}")  
+
+  # and some other stuff
+  service_name = node[:swift][:config][:environment]
+  proposal_name = service_name.split('-')
+  bcproposal = "bc-swift-" + proposal_name[2]
+  getdbip_db = data_bag_item('crowbar', bcproposal)
+  dbcont1 = getdbip_db["deployment"]["swift"]["elements"]["swift-proxy"][0]
+  cont_db = data_bag_item('crowbar', 'admin_network')
+  cont1_admin_ip = cont_db["allocated_by_name"]["#{dbcont1}"]["address"]
+  Chef::Log.info("Swift:Proxy - cont1_admin_ip - *#{cont1_admin_ip}*")
+  Chef::Log.info("Swift:Proxy - local_ip - *#{local_ip}*")
+
+  # is the swift install on dedicated nodes or the controllers?
+  # check if the current node is included in the haproxy proposal
+  controller_install = false
+  proxy_servers.length.times do |i|
+    if proxy_servers[i].name == node.name    
+        Chef::Log.info("Swift:Proxy - current node is a controller - *#{node.name}*")
+        controller_install = true
+        break
+    end
+  end
+
+  if controller_install 
+    # if on controllers then we only need to update this node
+    # (the other nodes will also update themselves only)
+    Chef::Log.info("Swift:Proxy - calling haproxy::update_for_swift on #{node.name}")
+    include_recipe 'haproxy::update_for_swift'
+  else
+    # If swift is going on dedicated nodes then 
+    # only run if this is the first node in the proposal 
+    # we don't need to do this multiple times...
+    if cont1_admin_ip == local_ip
+      # update the load-balancer config on the controller nodes
+      proxy_servers.length.times do |i|
+          Chef::Log.info("Swift:Proxy - starting chef-client on *#{proxy_servers[i].name}*")
+          execute "updateHAProxyConfig" do
+            command "knife ssh -m '#{proxy_servers[i].name}' 'sudo chef-client'"
+          end
+      end
+    end   
+  end 
 else
   node[:swift][:load_balanced] = false
   Chef::Log.info("Swift:Proxy - HAProxy server NOT found - using local IP addresses")

@@ -1,0 +1,9 @@
+{
+  "type": "map",
+  "required": true,
+  "mapping": {
+    "id": { "type": "str", "required": false },
+    "proxy-nodes": { "type": "str", "required": false },
+    "haproxy-proposal": { "type": "str", "required": false }
+  }
+}

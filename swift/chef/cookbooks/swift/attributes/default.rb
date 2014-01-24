@@ -99,7 +99,7 @@ default[:keystone][:frontend] = 'apache'
 
 # load-balancer config stuff
 default[:swift][:load_balanced] = false
-default[:swift][:haproxy_instance] = "proposal"
+default[:swift][:haproxy_instance] = ""
 default[:swift][:use_ssl] = false
 
 

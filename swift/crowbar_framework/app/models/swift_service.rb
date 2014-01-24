@@ -82,21 +82,6 @@ class SwiftService < ServiceObject
     end
     base["attributes"]["swift"]["keystone_service_password"] = '%012d' % rand(1e12)
 
-    base["attributes"]["swift"]["haproxy_instance"] = ""
-    begin
-      haproxyService = HaproxyService.new(@logger)
-      haproxies = haproxyService.list_active[1]
-      if haproxies.empty?
-        # No actives, look for proposals
-        haproxies = haproxyService.proposals[1]
-      end
-      if !haproxies.empty?
-        base["attributes"]["swift"]["haproxy_instance"] = haproxies[0]
-      end
-    rescue
-      @logger.info("Swift create_proposal: no haproxy found")
-    end
-
     base["deployment"]["swift"]["elements"] = {
         "swift-proxy" => [  ],
         "swift-ring-compute" => [  ],
@@ -131,11 +116,53 @@ class SwiftService < ServiceObject
     # Make sure that the front-end pieces have public ip addreses.
     net_svc = NetworkService.new @logger
     tnodes = role.override_attributes["swift"]["elements"]["swift-proxy"]
+    swift_proxy_nodes = Array.new
     tnodes.each do |n|
       next if n.nil?
       net_svc.allocate_ip "default", "public", "host", n
+      swift_proxy_nodes << n + ";"
     end
+    
+    # save some data to the swift-nodes databag
+    @logger.debug("Swift apply_role_pre_chef_call: start edit swift-nodes databag")
 
+    # get haproxy proposal name
+    role.default_attributes["swift"]["haproxy_instance"] = ""
+    begin
+      haproxyService = HaproxyService.new(@logger)
+      haproxies = haproxyService.list_active[1]
+      if haproxies.empty?
+        # No actives, look for proposals
+        haproxies = haproxyService.proposals[1]
+        @logger.debug("swift apply_role_pre_chef_call: no active swift nodes detected")
+      end
+      if !haproxies.empty?
+        role.default_attributes["swift"]["haproxy_instance"] = haproxies[0]
+        @logger.info("swift apply_role_pre_chef_call: found haproxy proposal - " + haproxies[0])
+        # save the proposal name to an attribute on each node object
+        all_nodes.each do |n|
+          node = NodeObject.find_node_by_name n
+          @logger.debug("swift apply_role_pre_chef_call: node name is #{n}")
+          node["swift"]["haproxy_instance"] = haproxies[0]
+          node.save
+        end
+      else
+        @logger.debug("swift apply_role_pre_chef_call: no active haproxy proposals detected either...")
+      end
+    rescue
+      @logger.info("swift apply_role_pre_chef_call: no haproxy proxy servers found")
+    end
+    
+    # construct a json file for swift-node databag update...
+    db_json_file = "/tmp/swift-nodes.json"
+    swift_proxy_nodes.join(" ")
+    File.open(db_json_file, 'w') do |json|  
+        json.puts "{\"id\":\"swift-nodes\",\"proxy-nodes\":\"#{swift_proxy_nodes}\",\"haproxy-proposal\":\"#{haproxies[0]}\"}"
+    end  
+    
+    system("sudo knife data bag from file crowbar #{db_json_file}")
+    @logger.debug("Swift apply_role_pre_chef_call: end edit swift-nodes databag")
+    
     all_nodes.each do |n|
       net_svc.allocate_ip "default", "storage", "host", n
     end
