@@ -85,6 +85,7 @@ locale_additions:
 
         edit_attributes: 
           attributes: Attributes
+          haproxy_instance: HAProxy proposal
           zones: Zones
           frontend: Frontend
           partitions: Partitions

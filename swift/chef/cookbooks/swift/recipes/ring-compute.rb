@@ -17,6 +17,11 @@
 
 include_recipe 'swift::rsync'
 
+# Prevent this from running multiple times 
+# if the ring files have already been built
+# and distributed
+unless File.file? ("/tmp/swiftring.flg")
+
 ##
 # Assumptions:
 #  - The partitions to be used on each node are in node[:swift][:devs]
@@ -156,3 +161,10 @@ target_nodes.each {|t|
     end
    end
 }
+
+template "/tmp/swiftring.flg" do
+  source "swiftring.flg.erb"
+  mode "0644"
+end
+
+end

@@ -17,7 +17,7 @@
 #
 
 service "uwsgi" do
-  Chef::Log.info("XXX - restarting uwsgi service")
+  Chef::Log.info("restarting uwsgi service")
   action :restart 
 end
 
