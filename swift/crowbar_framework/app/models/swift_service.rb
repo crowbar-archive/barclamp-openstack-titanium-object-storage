@@ -30,42 +30,52 @@ class SwiftService < ServiceObject
 
   def proposal_dependencies(role)
     answer = []
-    if role.default_attributes["swift"]["auth_method"] == "keystone"
-      answer << { "barclamp" => "keystone", "inst" => role.default_attributes["swift"]["keystone_instance"] }
-    end
-    if role.default_attributes[@bc_name]["use_gitrepo"]
-      answer << { "barclamp" => "git", "inst" => role.default_attributes[@bc_name]["git_instance"] }
-    end
+    answer << { "barclamp" => "haproxy", "inst" => role.default_attributes[@bc_name]["haproxy_instance"] }
+    answer << { "barclamp" => "percona", "inst" => role.default_attributes[@bc_name]["percona_instance"] }
+    answer << { "barclamp" => "keystone", "inst" => role.default_attributes[@bc_name]["keystone_instance"] }
     answer
   end
 
   def create_proposal
-
-
+    @logger.debug("Swift create_proposal: entering")
     base = super
 
-    rand_d = rand(100000)    
-    base[:attributes][:swift][:cluster_hash] = "%x" % rand_d
-    
-    nodes = NodeObject.all
-    nodes.delete_if { |n| n.nil? or n.admin? }
-
-    base["attributes"][@bc_name]["git_instance"] = ""
+    # HAProxy dependency
+    base["attributes"][@bc_name]["haproxy_instance"] = ""
     begin
-      gitService = GitService.new(@logger)
-      gits = gitService.list_active[1]
-      if gits.empty?
+      haproxyService = HaproxyService.new(@logger)
+      haproxys = haproxyService.list_active[1]
+      if haproxys.empty?
         # No actives, look for proposals
-        gits = gitService.proposals[1]
+        haproxys = haproxyService.proposals[1]
       end
-      unless gits.empty?
-        base["attributes"][@bc_name]["git_instance"] = gits[0]
-      end
+      base["attributes"][@bc_name]["haproxy_instance"] = haproxys[0] unless haproxys.empty?
     rescue
-      @logger.info("#{@bc_name} create_proposal: no git found")
+      @logger.info("Swift create_proposal: no haproxy found")
+    end
+    if base["attributes"][@bc_name]["haproxy_instance"] == ""
+      raise(I18n.t('model.service.dependency_missing', :name => @bc_name, :dependson => "haproxy"))
     end
 
-    base["attributes"]["swift"]["keystone_instance"] = ""
+    # Percona dependency
+    base["attributes"][@bc_name]["percona_instance"] = ""
+    begin
+      perconaService = PerconaService.new(@logger)
+      perconas = perconaService.list_active[1]
+      if perconas.empty?
+        # No actives, look for proposals
+        perconas = perconaService.proposals[1]
+      end
+      base["attributes"][@bc_name]["percona_instance"] = perconas[0] unless perconas.empty?
+    rescue
+      @logger.info("Swift create_proposal: no percona found")
+    end
+    if base["attributes"][@bc_name]["percona_instance"] == ""
+      raise(I18n.t('model.service.dependency_missing', :name => @bc_name, :dependson => "percona"))
+    end
+
+    # Keystone dependency
+    base["attributes"][@bc_name]["keystone_instance"] = ""
     begin
       keystoneService = KeystoneService.new(@logger)
       keystones = keystoneService.list_active[1]
@@ -78,34 +88,18 @@ class SwiftService < ServiceObject
         base["attributes"]["swift"]["auth_method"] = "keystone"
       end
     rescue
-      @logger.info("Swift create_proposal: no keystone found - will use swauth")
+      @logger.info("Swift create_proposal: no keystone found")
     end
+    if base["attributes"][@bc_name]["keystone_instance"] == ""
+      raise(I18n.t('model.service.dependency_missing', :name => @bc_name, :dependson => "keystone"))
+    end
+
+    rand_d = rand(100000)    
+    base[:attributes][:swift][:cluster_hash] = "%x" % rand_d
+
     base["attributes"]["swift"]["keystone_service_password"] = '%012d' % rand(1e12)
 
-    base["deployment"]["swift"]["elements"] = {
-        "swift-proxy" => [  ],
-        "swift-ring-compute" => [  ],
-        "swift-storage" => []
-    }
-
-    if nodes.size == 1
-      base["deployment"]["swift"]["elements"] = {
-        "swift-proxy" => [ nodes.first[:fqdn] ],
-        "swift-dispersion" => [ nodes.first[:fqdn] ],
-        "swift-ring-compute" => [ nodes.first[:fqdn] ],
-        "swift-storage" => [ nodes.first[:fqdn] ]
-      }
-    elsif nodes.size > 1
-      head = nodes.shift
-      base["deployment"]["swift"]["elements"] = {
-        "swift-dispersion" => [ head[:fqdn] ],
-        "swift-proxy" => [ head[:fqdn] ],
-        "swift-ring-compute" => [ head[:fqdn] ],
-        "swift-storage" => nodes.map { |x| x[:fqdn] }
-      }
-    end
-
-    @logger.fatal("swift create_proposal: exiting")
+    @logger.debug("Glance create_proposal: exiting")
     base
   end
 

@@ -1,6 +1,6 @@
 {
   "id": "bc-template-swift",
-  "description": "part of Openstack, and provides a distributed blob storage",
+  "description": "OpenStack HA - object storage: scale-out object store",
   "attributes": {
     "swift": {
       "dispersion": {
@@ -51,6 +51,7 @@
         }
       },
       "haproxy_instance": "",
+      "percona_instance": "",
       "gitrepo": "http://github.com/openstack/swift.git",
       "git_instance": "",
       "git_refspec": "stable/grizzly",
