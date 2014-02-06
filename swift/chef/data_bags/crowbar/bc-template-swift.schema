@@ -96,6 +96,7 @@
               }
             },
             "haproxy_instance": { "type": "str", "required": true },
+            "percona_instance": { "type": "str" },
             "gitrepo": { "type": "str", "required": true },
             "git_instance": { "type": "str", "required": true },
             "git_refspec": { "type": "str", "required": true },
